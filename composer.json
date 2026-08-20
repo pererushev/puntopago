@@ -1,0 +1,11 @@
+{
+    "name": "punto-pago/punto-pago",
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "require": {
+        "php": ">=8.1"
+    }
+}
