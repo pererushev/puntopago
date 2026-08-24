@@ -1,6 +1,7 @@
 <?php
 namespace App\Controller;
 
+use App\Http\PaymentWebhookRequest;
 use App\Service\PaymentService;
 
 class WebhookController
@@ -9,6 +10,14 @@ class WebhookController
 
     public function handle(array $body, string $signature): void
     {
-        // TODO: вызвать service->handleWebhook
+        $request = PaymentWebhookRequest::fromHttp($body, $signature);
+        $result  = $this->service->handleWebhook(
+            $request->toPayload(),
+            $request->signature,
+            $this->secret,
+        );
+
+        http_response_code(200);
+        echo json_encode($result);
     }
 }

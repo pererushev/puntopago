@@ -1,8 +1,8 @@
 <?php
 namespace App\Controller;
 
+use App\Http\CreatePaymentRequest;
 use App\Service\PaymentService;
-use App\Exception\PaymentException;
 
 class PaymentController
 {
@@ -10,6 +10,17 @@ class PaymentController
 
     public function create(array $body, ?string $idempotencyKey): void
     {
-        // TODO: Валидация body, вызов service, вывод JSON с кодом 201
+        $request = CreatePaymentRequest::fromHttp($body, $idempotencyKey);
+
+        $payment = $this->service->createPayment(
+            $request->idempotencyKey,
+            $request->userId,
+            $request->amountCents,
+            $request->currency,
+            $request->description,
+        );
+
+        http_response_code(201);
+        echo json_encode($payment);
     }
 }

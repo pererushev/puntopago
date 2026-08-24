@@ -35,7 +35,16 @@ $uri    = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 header('Content-Type: application/json');
 
 try {
-    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $raw = file_get_contents('php://input') ?: '';
+    if ($raw === '') {
+        $body = [];
+    } else {
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            throw new RuntimeException('Invalid JSON body', 400);
+        }
+        $body = $decoded;
+    }
 
     match (true) {
         $method === 'POST' && preg_match('#^/wallets/(\d+)/deposit$#', $uri, $m)
