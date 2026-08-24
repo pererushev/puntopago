@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 require __DIR__ . '/../vendor/autoload.php';
 
-use App\Config\DatabaseConfig;
 use App\Config\Env;
 use App\Infrastructure\Database;
 use App\Infrastructure\Cache;
@@ -16,7 +15,7 @@ use App\Service\WalletService;
 // --- Bootstrap ---
 Env::load(dirname(__DIR__) . '/.env');
 
-$db = new Database(DatabaseConfig::fromFile());
+$db = Database::fromFile();
 
 $cache = new Cache(getenv('MEMCACHED_HOST') ?: 'memcached');
 

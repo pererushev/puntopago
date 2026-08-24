@@ -17,6 +17,11 @@ class Database
         ]);
     }
 
+    public static function fromFile(?string $path = null): self
+    {
+        return new self(DatabaseConfig::fromFile($path));
+    }
+
     public function pdo(): PDO { return $this->pdo; }
 
     public function beginTransaction(): void { $this->pdo->beginTransaction(); }
