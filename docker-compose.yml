@@ -10,9 +10,11 @@ services:
       - memcached
     environment:
       DB_HOST: db
+      DB_PORT: 3306
       DB_NAME: punto_pago
       DB_USER: root
       DB_PASS: secret
+      DB_CHARSET: utf8mb4
       MEMCACHED_HOST: memcached
       WEBHOOK_SECRET: super-secret-key-123
 

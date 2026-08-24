@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 require __DIR__ . '/../vendor/autoload.php';
 
+use App\Config\DatabaseConfig;
+use App\Config\Env;
 use App\Infrastructure\Database;
 use App\Infrastructure\Cache;
 use App\Controller\PaymentController;
@@ -12,12 +14,9 @@ use App\Service\PaymentService;
 use App\Service\WalletService;
 
 // --- Bootstrap ---
-$db = new Database(
-    getenv('DB_HOST') ?: 'db',
-    getenv('DB_NAME') ?: 'punto_pago',
-    getenv('DB_USER') ?: 'root',
-    getenv('DB_PASS') ?: 'secret',
-);
+Env::load(dirname(__DIR__) . '/.env');
+
+$db = new Database(DatabaseConfig::fromFile());
 
 $cache = new Cache(getenv('MEMCACHED_HOST') ?: 'memcached');
 

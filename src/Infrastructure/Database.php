@@ -1,16 +1,16 @@
 <?php
 namespace App\Infrastructure;
 
+use App\Config\DatabaseConfig;
 use PDO;
 
 class Database
 {
     private PDO $pdo;
 
-    public function __construct(string $host, string $db, string $user, string $pass)
+    public function __construct(DatabaseConfig $config)
     {
-        $dsn = "mysql:host={$host};dbname={$db};charset=utf8mb4";
-        $this->pdo = new PDO($dsn, $user, $pass, [
+        $this->pdo = new PDO($config->dsn(), $config->user, $config->password, [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES   => false,
