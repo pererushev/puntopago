@@ -6,6 +6,7 @@ require __DIR__ . '/../vendor/autoload.php';
 use App\Config\Env;
 use App\Infrastructure\Database;
 use App\Infrastructure\Cache;
+use App\Controller\HealthController;
 use App\Controller\PaymentController;
 use App\Controller\WalletController;
 use App\Controller\WebhookController;
@@ -25,6 +26,7 @@ $walletService  = new WalletService($db);
 $paymentCtrl = new PaymentController($paymentService);
 $walletCtrl  = new WalletController($walletService);
 $webhookCtrl = new WebhookController($paymentService, getenv('WEBHOOK_SECRET') ?: 'secret');
+$healthCtrl  = new HealthController($db, $cache);
 
 // --- Routing ---
 $method = $_SERVER['REQUEST_METHOD'];
@@ -45,6 +47,9 @@ try {
     }
 
     match (true) {
+        $method === 'GET' && $uri === '/health'
+            => $healthCtrl->show(),
+
         $method === 'POST' && preg_match('#^/wallets/(\d+)/deposit$#', $uri, $m)
             => $walletCtrl->deposit((int)$m[1], $body),
 

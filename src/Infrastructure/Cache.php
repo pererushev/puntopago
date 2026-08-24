@@ -28,4 +28,11 @@ class Cache
     {
         return $this->mc->delete($key);
     }
+
+    /** @return array<string, mixed>|false */
+    public function getStats(): array|false
+    {
+        $stats = $this->mc->getStats();
+        return is_array($stats) ? $stats : false;
+    }
 }

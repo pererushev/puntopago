@@ -27,4 +27,14 @@ class Database
     public function beginTransaction(): void { $this->pdo->beginTransaction(); }
     public function commit(): void           { $this->pdo->commit(); }
     public function rollBack(): void         { $this->pdo->rollBack(); }
+
+    public function ping(): bool
+    {
+        try {
+            $this->pdo->query('SELECT 1');
+            return true;
+        } catch (\PDOException) {
+            return false;
+        }
+    }
 }
