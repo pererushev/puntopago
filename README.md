@@ -14,11 +14,13 @@ docker compose exec db mysql -uroot -psecret punto_pago -e "SHOW TABLES;"
 # 1. Пополнить кошелёк пользователя 1 на $50
 curl -X POST http://localhost:8080/wallets/1/deposit \
   -H "Content-Type: application/json" \
+  -H "Idempotency-Key: dep-abc-123" \
   -d '{"amount_cents": 5000}'
 
 # 2. Списать $20
 curl -X POST http://localhost:8080/wallets/1/withdraw \
   -H "Content-Type: application/json" \
+  -H "Idempotency-Key: wd-abc-123" \
   -d '{"amount_cents": 2000}'
 
 # 3. Создать платёж (идемпотентно!)

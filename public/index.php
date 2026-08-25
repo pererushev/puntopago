@@ -51,10 +51,10 @@ try {
             => $healthCtrl->show(),
 
         $method === 'POST' && preg_match('#^/wallets/(\d+)/deposit$#', $uri, $m)
-            => $walletCtrl->deposit((int)$m[1], $body),
+            => $walletCtrl->deposit((int)$m[1], $body, $_SERVER['HTTP_IDEMPOTENCY_KEY'] ?? null),
 
         $method === 'POST' && preg_match('#^/wallets/(\d+)/withdraw$#', $uri, $m)
-            => $walletCtrl->withdraw((int)$m[1], $body),
+            => $walletCtrl->withdraw((int)$m[1], $body, $_SERVER['HTTP_IDEMPOTENCY_KEY'] ?? null),
 
         $method === 'POST' && $uri === '/payments'
             => $paymentCtrl->create($body, $_SERVER['HTTP_IDEMPOTENCY_KEY'] ?? null),
