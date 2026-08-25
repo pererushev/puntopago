@@ -4,6 +4,7 @@ namespace App\Service;
 use App\Infrastructure\Database;
 use App\Infrastructure\Cache;
 use App\Domain\PaymentStatus;
+use App\Exception\ErrorCode;
 use App\Exception\PaymentException;
 
 class PaymentService
@@ -54,7 +55,7 @@ class PaymentService
             $payment = $this->findById((int) $this->db->pdo()->lastInsertId());
             if ($payment === null) {
                 $this->db->rollBack();
-                throw new PaymentException('Failed to load created payment', 500);
+                throw new PaymentException('Failed to load created payment', ErrorCode::InternalError);
             }
 
             $this->db->commit();
@@ -118,7 +119,7 @@ class PaymentService
             || (int) $payment['amount_cents'] !== $amountCents
             || $payment['currency'] !== $currency
         ) {
-            throw new PaymentException('Idempotency-Key already used with different parameters', 409);
+            throw new PaymentException('Idempotency-Key already used with different parameters', ErrorCode::IdempotencyConflict);
         }
     }
 

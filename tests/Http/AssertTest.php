@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Tests\Http;
 
+use App\Exception\ErrorCode;
 use App\Exception\PaymentException;
 use App\Http\Assert;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -47,13 +48,13 @@ final class AssertTest extends TestCase
         yield 'leading zero' => [['user_id' => '01'], 'user_id', 'user_id must be a positive integer'];
     }
 
-    public function testPositiveIntExceptionHasHttpBadRequestCode(): void
+    public function testPositiveIntExceptionHasValidationErrorCode(): void
     {
         try {
             Assert::positiveInt([], 'amount_cents');
             self::fail('Expected PaymentException');
         } catch (PaymentException $e) {
-            self::assertSame(400, $e->getCode());
+            self::assertSame(ErrorCode::ValidationError, $e->errorCode());
         }
     }
 
@@ -184,6 +185,5 @@ final class AssertTest extends TestCase
     {
         $this->expectException(PaymentException::class);
         $this->expectExceptionMessage($message);
-        $this->expectExceptionCode(400);
     }
 }

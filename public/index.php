@@ -10,6 +10,8 @@ use App\Controller\HealthController;
 use App\Controller\PaymentController;
 use App\Controller\WalletController;
 use App\Controller\WebhookController;
+use App\Http\ErrorResponse;
+use App\Http\HttpException;
 use App\Service\PaymentService;
 use App\Service\WalletService;
 
@@ -41,7 +43,7 @@ try {
     } else {
         $decoded = json_decode($raw, true);
         if (!is_array($decoded)) {
-            throw new RuntimeException('Invalid JSON body', 400);
+            throw new HttpException('Invalid JSON body', 400);
         }
         $body = $decoded;
     }
@@ -62,13 +64,10 @@ try {
         $method === 'POST' && $uri === '/webhooks/payment'
             => $webhookCtrl->handle($body, $_SERVER['HTTP_X_SIGNATURE'] ?? ''),
 
-        default => throw new RuntimeException('Not Found', 404),
+        default => throw new HttpException('Not Found', 404),
     };
 } catch (\Throwable $e) {
-    $code = $e->getCode() && $e->getCode() >= 400 ? $e->getCode() : 500;
-    http_response_code($code);
-    echo json_encode([
-        'error' => $e->getMessage(),
-        'code'  => $code,
-    ]);
+    $error = ErrorResponse::fromThrowable($e);
+    http_response_code($error->status);
+    echo json_encode($error->toArray());
 }

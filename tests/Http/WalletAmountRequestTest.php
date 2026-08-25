@@ -24,7 +24,6 @@ final class WalletAmountRequestTest extends TestCase
     {
         $this->expectException(PaymentException::class);
         $this->expectExceptionMessage('wallet id must be a positive integer');
-        $this->expectExceptionCode(400);
 
         WalletAmountRequest::fromHttp($walletId, ['amount_cents' => 5000], 'dep-abc-123');
     }
@@ -47,7 +46,6 @@ final class WalletAmountRequestTest extends TestCase
     {
         $this->expectException(PaymentException::class);
         $this->expectExceptionMessage('Idempotency-Key header is required');
-        $this->expectExceptionCode(400);
 
         WalletAmountRequest::fromHttp(1, ['amount_cents' => 5000], null);
     }

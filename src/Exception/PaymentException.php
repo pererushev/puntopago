@@ -1,12 +1,21 @@
 <?php
+declare(strict_types=1);
+
 namespace App\Exception;
 
 use RuntimeException;
 
 class PaymentException extends RuntimeException
 {
-    public function __construct(string $message, int $code = 400)
+    public function __construct(
+        string $message,
+        private ErrorCode $errorCode = ErrorCode::ValidationError,
+    ) {
+        parent::__construct($message);
+    }
+
+    public function errorCode(): ErrorCode
     {
-        parent::__construct($message, $code);
+        return $this->errorCode;
     }
 }

@@ -2,6 +2,7 @@
 namespace App\Service;
 
 use App\Infrastructure\Database;
+use App\Exception\ErrorCode;
 use App\Exception\PaymentException;
 
 class WalletService
@@ -35,12 +36,12 @@ class WalletService
             $stmt->execute(['id' => $walletId]);
             $wallet = $stmt->fetch();
             if ($wallet === false) {
-                throw new PaymentException('wallet not found');
+                throw new PaymentException('wallet not found', ErrorCode::WalletNotFound);
             }
 
             $balanceCents = (int) $wallet['balance_cents'];
             if ($balanceCents > 0 && $amountCents > PHP_INT_MAX - $balanceCents) {
-                throw new PaymentException('balance overflow');
+                throw new PaymentException('balance overflow', ErrorCode::BalanceOverflow);
             }
             $balanceAfterCents = $balanceCents + $amountCents;
 
@@ -63,7 +64,7 @@ class WalletService
 
             $wallet = $this->findById($walletId);
             if ($wallet === null) {
-                throw new PaymentException('Failed to load updated wallet', 500);
+                throw new PaymentException('Failed to load updated wallet', ErrorCode::InternalError);
             }
 
             $this->db->commit();
@@ -108,7 +109,7 @@ class WalletService
     {
         $wallet = $this->findById($walletId);
         if ($wallet === null) {
-            throw new PaymentException('wallet not found');
+            throw new PaymentException('wallet not found', ErrorCode::WalletNotFound);
         }
 
         return $wallet;
@@ -144,7 +145,7 @@ class WalletService
             || (int) $transaction['amount_cents'] !== $amountCents
             || $transaction['type'] !== 'deposit'
         ) {
-            throw new PaymentException('Idempotency-Key already used with different parameters', 409);
+            throw new PaymentException('Idempotency-Key already used with different parameters', ErrorCode::IdempotencyConflict);
         }
     }
 
