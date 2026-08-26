@@ -90,7 +90,7 @@ class PaymentService
             throw new PaymentException('Invalid signature', ErrorCode::InvalidSignature);
         }
 
-        $payment = $this->findById($payload['id']);
+        $payment = $this->findById($payload['payment_id']);
         if ($payment === null) {
             throw new PaymentException('Payment not found', ErrorCode::PaymentNotFound);
         }
