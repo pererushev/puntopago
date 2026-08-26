@@ -159,7 +159,7 @@ class PaymentService
             'amount_cents'    => (int) $row['amount_cents'],
             'currency'        => $row['currency'],
             'description'     => $row['description'],
-            'status'          => $row['status'],
+            'status'          => PaymentStatus::from($row['status']),
             'provider_ref'    => $row['provider_ref'],
             'created_at'      => $row['created_at'],
             'updated_at'      => $row['updated_at'],

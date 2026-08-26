@@ -1,7 +1,9 @@
 <?php
 namespace App\Domain;
 
-enum PaymentStatus: string
+use JsonSerializable;
+
+enum PaymentStatus: string implements JsonSerializable
 {
     case Pending    = 'pending';
     case Processing = 'processing';
@@ -19,5 +21,10 @@ enum PaymentStatus: string
             self::Failed     => $next === self::Pending,
             default          => false,
         };
+    }
+
+    public function jsonSerialize(): string
+    {
+        return $this->value;
     }
 }
