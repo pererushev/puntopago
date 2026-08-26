@@ -97,6 +97,20 @@ class WalletService
 
     public function withdraw(int $walletId, int $amountCents): array
     {
+        if ($walletId <= 0) {
+            throw new PaymentException('wallet_id must be a positive integer');
+        }
+        if ($amountCents <= 0) {
+            throw new PaymentException('amount_cents must be a positive integer');
+        }
+
+        $wallet = $this->requireWallet($walletId);
+        if ($wallet['balance_cents'] < $amountCents) {
+            throw new PaymentException('insufficient funds', ErrorCode::InsufficientFunds);
+        }
+
+        $this->db->beginTransaction();
+
         // TODO: Реализовать
         // 1. Валидация
         // 2. SELECT ... FOR UPDATE

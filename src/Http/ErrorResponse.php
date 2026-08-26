@@ -39,6 +39,7 @@ final class ErrorResponse
             ErrorCode::WalletNotFound => 404,
             ErrorCode::IdempotencyConflict => 409,
             ErrorCode::BalanceOverflow => 422,
+            ErrorCode::InsufficientFunds => 422,
             ErrorCode::InternalError => 500,
         };
     }

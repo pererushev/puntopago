@@ -29,6 +29,7 @@ final class ErrorResponseTest extends TestCase
         yield 'wallet not found' => [ErrorCode::WalletNotFound, 404];
         yield 'idempotency conflict' => [ErrorCode::IdempotencyConflict, 409];
         yield 'balance overflow' => [ErrorCode::BalanceOverflow, 422];
+        yield 'insufficient funds' => [ErrorCode::InsufficientFunds, 422];
         yield 'internal' => [ErrorCode::InternalError, 500];
     }
 
