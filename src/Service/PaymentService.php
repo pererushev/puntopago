@@ -90,19 +90,27 @@ class PaymentService
             throw new PaymentException('Invalid signature', ErrorCode::InvalidSignature);
         }
 
+        $nextStatus = PaymentStatus::tryFromProvider((string) ($payload['status'] ?? ''));
+        if ($nextStatus === null) {
+            throw new PaymentException('Unknown provider status', ErrorCode::ValidationError);
+        }
+
         $payment = $this->findById($payload['payment_id']);
         if ($payment === null) {
             throw new PaymentException('Payment not found', ErrorCode::PaymentNotFound);
         }
 
-        if (!$payment['status']->canTransitionTo(PaymentStatus::Completed)) {
-            throw new PaymentException('Payment status is not transitionable to completed', ErrorCode::InvalidStatusTransition);
+        if (!$payment['status']->canTransitionTo($nextStatus)) {
+            throw new PaymentException(
+                'Payment status is not transitionable to ' . $nextStatus->value,
+                ErrorCode::InvalidStatusTransition,
+            );
         }
 
         $this->db->beginTransaction();
         try {
             $stmt = $this->db->pdo()->prepare('UPDATE payments SET status = :status WHERE id = :id');
-            $stmt->execute(['status' => PaymentStatus::Completed->value, 'id' => $payment['id']]);
+            $stmt->execute(['status' => $nextStatus->value, 'id' => $payment['id']]);
             $this->db->commit();
         } catch (\PDOException $e) {
             if ($this->db->pdo()->inTransaction()) {
@@ -111,11 +119,9 @@ class PaymentService
             throw $e;
         }
 
-        return $payment;    
+        return $payment;
 
         // TODO: Реализовать
-        // 1. Проверка HMAC-SHA256 подписи через hash_equals
-        // 2. Маппинг статусов провайдера → PaymentStatus
         // 3. SELECT ... FOR UPDATE
         // 4. Проверка canTransitionTo()
         // 5. UPDATE статуса
