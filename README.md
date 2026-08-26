@@ -36,9 +36,8 @@ curl -X POST http://localhost:8080/payments \
   -d '{"user_id": 1, "amount_cents": 1500, "currency": "USD", "description": "Test payment"}'
 
 # 5. Webhook с подписью (HMAC-SHA256)
-# Подпись считается от того же JSON, что в теле. openssl печатает "SHA2-256(stdin)= <hex>" — в X-Signature нужен только hex.
-echo -n '{"payment_id":1,"status":"success","idempotency_key":"pay-abc-123"}' | openssl dgst -sha256 -hmac "super-secret-key-123"
+# Сначала посчитай подпись: echo -n '{"payment_id":1,"status":"success","idempotency_key":"pay-abc-123"}' | openssl dgst -sha256 -hmac "super-secret-key-123"
 curl -X POST http://localhost:8080/webhooks/payment \
   -H "Content-Type: application/json" \
-  -H "X-Signature: 8ecf7f29c537811dad73abd067c157810302640f33804b893f15e21e8368e883" \
+  -H "X-Signature: <тут хэш>" \
   -d '{"payment_id":1,"status":"success","idempotency_key":"pay-abc-123"}'
