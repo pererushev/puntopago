@@ -26,8 +26,11 @@ final class ErrorResponseTest extends TestCase
     public static function paymentExceptionProvider(): iterable
     {
         yield 'validation' => [ErrorCode::ValidationError, 400];
+        yield 'invalid signature' => [ErrorCode::InvalidSignature, 401];
         yield 'wallet not found' => [ErrorCode::WalletNotFound, 404];
+        yield 'payment not found' => [ErrorCode::PaymentNotFound, 404];
         yield 'idempotency conflict' => [ErrorCode::IdempotencyConflict, 409];
+        yield 'invalid status transition' => [ErrorCode::InvalidStatusTransition, 409];
         yield 'balance overflow' => [ErrorCode::BalanceOverflow, 422];
         yield 'insufficient funds' => [ErrorCode::InsufficientFunds, 422];
         yield 'internal' => [ErrorCode::InternalError, 500];

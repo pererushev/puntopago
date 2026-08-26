@@ -86,6 +86,33 @@ class PaymentService
 
     public function handleWebhook(array $payload, string $signature, string $secret): array
     {
+        if (!hash_equals($signature, hash_hmac('sha256', json_encode($payload), $secret))) {
+            throw new PaymentException('Invalid signature', ErrorCode::InvalidSignature);
+        }
+
+        $payment = $this->findById($payload['id']);
+        if ($payment === null) {
+            throw new PaymentException('Payment not found', ErrorCode::PaymentNotFound);
+        }
+
+        if (!$payment['status']->canTransitionTo(PaymentStatus::Completed)) {
+            throw new PaymentException('Payment status is not transitionable to completed', ErrorCode::InvalidStatusTransition);
+        }
+
+        $this->db->beginTransaction();
+        try {
+            $stmt = $this->db->pdo()->prepare('UPDATE payments SET status = :status WHERE id = :id');
+            $stmt->execute(['status' => PaymentStatus::Completed->value, 'id' => $payment['id']]);
+            $this->db->commit();
+        } catch (\PDOException $e) {
+            if ($this->db->pdo()->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
+
+        return $payment;    
+
         // TODO: Реализовать
         // 1. Проверка HMAC-SHA256 подписи через hash_equals
         // 2. Маппинг статусов провайдера → PaymentStatus

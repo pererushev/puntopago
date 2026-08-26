@@ -36,8 +36,9 @@ final class ErrorResponse
     {
         return match ($code) {
             ErrorCode::ValidationError => 400,
-            ErrorCode::WalletNotFound => 404,
-            ErrorCode::IdempotencyConflict => 409,
+            ErrorCode::InvalidSignature => 401,
+            ErrorCode::WalletNotFound, ErrorCode::PaymentNotFound => 404,
+            ErrorCode::IdempotencyConflict, ErrorCode::InvalidStatusTransition => 409,
             ErrorCode::BalanceOverflow => 422,
             ErrorCode::InsufficientFunds => 422,
             ErrorCode::InternalError => 500,
