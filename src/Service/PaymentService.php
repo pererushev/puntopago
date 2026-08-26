@@ -103,20 +103,23 @@ class PaymentService
                 throw new PaymentException('Payment not found', ErrorCode::PaymentNotFound);
             }
 
-            if ($payment['status'] === $nextStatus) {
-                $this->db->commit();
-                return $payment;
+            if ($payment['status'] !== $nextStatus) {
+                if (!$payment['status']->canTransitionTo($nextStatus)) {
+                    throw new PaymentException(
+                        'Payment status is not transitionable to ' . $nextStatus->value,
+                        ErrorCode::InvalidStatusTransition,
+                    );
+                }
+
+                $stmt = $this->db->pdo()->prepare('UPDATE payments SET status = :status WHERE id = :id');
+                $stmt->execute(['status' => $nextStatus->value, 'id' => $payment['id']]);
+
+                $payment = $this->findById($payment['id']);
+                if ($payment === null) {
+                    throw new PaymentException('Failed to load updated payment', ErrorCode::InternalError);
+                }
             }
 
-            if (!$payment['status']->canTransitionTo($nextStatus)) {
-                throw new PaymentException(
-                    'Payment status is not transitionable to ' . $nextStatus->value,
-                    ErrorCode::InvalidStatusTransition,
-                );
-            }
-
-            $stmt = $this->db->pdo()->prepare('UPDATE payments SET status = :status WHERE id = :id');
-            $stmt->execute(['status' => $nextStatus->value, 'id' => $payment['id']]);
             $this->db->commit();
         } catch (\Throwable $e) {
             if ($this->db->pdo()->inTransaction()) {
@@ -124,6 +127,8 @@ class PaymentService
             }
             throw $e;
         }
+
+        $this->cache->delete(self::CACHE_PREFIX . $payment['idempotency_key']);
 
         return $payment;
     }
