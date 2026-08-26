@@ -20,7 +20,7 @@ class WalletController
     public function withdraw(int $walletId, array $body, ?string $idempotencyKey): void
     {
         $request = WalletAmountRequest::fromHttp($walletId, $body, $idempotencyKey);
-        $result  = $this->service->withdraw($request->walletId, $request->amountCents);
+        $result  = $this->service->withdraw($request->walletId, $request->amountCents, $request->idempotencyKey);
 
         http_response_code(200);
         echo json_encode($result);

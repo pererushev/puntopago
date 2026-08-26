@@ -22,7 +22,7 @@ class WalletService
 
         $existing = $this->findTransactionByIdempotencyKey($idempotencyKey);
         if ($existing !== null) {
-            $this->assertSameDeposit($existing, $walletId, $amountCents);
+            $this->assertSameTransaction($existing, $walletId, $amountCents, 'deposit');
             return $this->requireWallet($walletId);
         }
 
@@ -82,7 +82,7 @@ class WalletService
                 throw $e;
             }
 
-            $this->assertSameDeposit($existing, $walletId, $amountCents);
+            $this->assertSameTransaction($existing, $walletId, $amountCents, 'deposit');
 
             return $this->requireWallet($walletId);
         } catch (\Throwable $e) {
@@ -95,7 +95,7 @@ class WalletService
         return $wallet;
     }
 
-    public function withdraw(int $walletId, int $amountCents): array
+    public function withdraw(int $walletId, int $amountCents, string $idempotencyKey): array
     {
         if ($walletId <= 0) {
             throw new PaymentException('wallet_id must be a positive integer');
@@ -104,19 +104,95 @@ class WalletService
             throw new PaymentException('amount_cents must be a positive integer');
         }
 
-        $wallet = $this->requireWallet($walletId);
-        if ($wallet['balance_cents'] < $amountCents) {
-            throw new PaymentException('insufficient funds', ErrorCode::InsufficientFunds);
+        $existing = $this->findTransactionByIdempotencyKey($idempotencyKey);
+        if ($existing !== null) {
+            $this->assertSameTransaction($existing, $walletId, $amountCents, 'withdraw');
+            return $this->requireWallet($walletId);
         }
 
-        $this->db->beginTransaction();
+        try {
+            $this->db->beginTransaction();
 
-        // TODO: Реализовать
-        // 1. Валидация
-        // 2. SELECT ... FOR UPDATE
-        // 3. Проверка sufficient funds
-        // 4. UPDATE balance_cents = balance_cents - amount
-        // 5. INSERT в wallet_transactions
+            $stmt = $this->db->pdo()->prepare(
+                'SELECT id, user_id, currency, balance_cents, created_at, updated_at
+                 FROM wallets WHERE id = :id FOR UPDATE'
+            );
+            $stmt->execute(['id' => $walletId]);
+            $wallet = $stmt->fetch();
+            if ($wallet === false) {
+                throw new PaymentException('wallet not found', ErrorCode::WalletNotFound);
+            }
+
+            $existing = $this->findTransactionByIdempotencyKey($idempotencyKey, forUpdate: true);
+            if ($existing !== null) {
+                $this->assertSameTransaction($existing, $walletId, $amountCents, 'withdraw');
+                $this->db->commit();
+                return $this->mapWallet($wallet);
+            }
+
+            $balanceCents = (int) $wallet['balance_cents'];
+            if ($balanceCents < $amountCents) {
+                throw new PaymentException('insufficient funds', ErrorCode::InsufficientFunds);
+            }
+            $balanceAfterCents = $balanceCents - $amountCents;
+
+            $stmt = $this->db->pdo()->prepare(
+                'INSERT INTO wallet_transactions (wallet_id, amount_cents, type, balance_after_cents, idempotency_key)
+                 VALUES (:wallet_id, :amount_cents, :type, :balance_after_cents, :idempotency_key)'
+            );
+            $stmt->execute([
+                'wallet_id'           => $walletId,
+                'amount_cents'        => $amountCents,
+                'type'                => 'withdraw',
+                'balance_after_cents' => $balanceAfterCents,
+                'idempotency_key'     => $idempotencyKey,
+            ]);
+
+            $stmt = $this->db->pdo()->prepare(
+                'UPDATE wallets
+                 SET balance_cents = balance_cents - :amount
+                 WHERE id = :id AND balance_cents >= :min_balance'
+            );
+            $stmt->execute([
+                'amount'      => $amountCents,
+                'id'          => $walletId,
+                'min_balance' => $amountCents,
+            ]);
+            if ($stmt->rowCount() === 0) {
+                throw new PaymentException('insufficient funds', ErrorCode::InsufficientFunds);
+            }
+
+            $wallet = $this->findById($walletId);
+            if ($wallet === null) {
+                throw new PaymentException('Failed to load updated wallet', ErrorCode::InternalError);
+            }
+
+            $this->db->commit();
+        } catch (\PDOException $e) {
+            if ($this->db->pdo()->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            if ((int) ($e->errorInfo[1] ?? 0) !== self::DUPLICATE_KEY) {
+                throw $e;
+            }
+
+            $existing = $this->findTransactionByIdempotencyKey($idempotencyKey);
+            if ($existing === null) {
+                throw $e;
+            }
+
+            $this->assertSameTransaction($existing, $walletId, $amountCents, 'withdraw');
+
+            return $this->requireWallet($walletId);
+        } catch (\Throwable $e) {
+            if ($this->db->pdo()->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
+
+        return $wallet;
     }
 
     private function requireWallet(int $walletId): array
@@ -141,23 +217,26 @@ class WalletService
         return $row === false ? null : $this->mapWallet($row);
     }
 
-    private function findTransactionByIdempotencyKey(string $key): ?array
+    private function findTransactionByIdempotencyKey(string $key, bool $forUpdate = false): ?array
     {
-        $stmt = $this->db->pdo()->prepare(
-            'SELECT wallet_id, amount_cents, type FROM wallet_transactions WHERE idempotency_key = :key LIMIT 1'
-        );
+        $sql = 'SELECT wallet_id, amount_cents, type FROM wallet_transactions WHERE idempotency_key = :key LIMIT 1';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $stmt = $this->db->pdo()->prepare($sql);
         $stmt->execute(['key' => $key]);
         $row = $stmt->fetch();
 
         return $row === false ? null : $row;
     }
 
-    private function assertSameDeposit(array $transaction, int $walletId, int $amountCents): void
+    private function assertSameTransaction(array $transaction, int $walletId, int $amountCents, string $type): void
     {
         if (
             (int) $transaction['wallet_id'] !== $walletId
             || (int) $transaction['amount_cents'] !== $amountCents
-            || $transaction['type'] !== 'deposit'
+            || $transaction['type'] !== $type
         ) {
             throw new PaymentException('Idempotency-Key already used with different parameters', ErrorCode::IdempotencyConflict);
         }
