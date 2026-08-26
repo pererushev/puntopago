@@ -95,24 +95,30 @@ class PaymentService
             throw new PaymentException('Unknown provider status', ErrorCode::ValidationError);
         }
 
-        $payment = $this->findById($payload['payment_id']);
-        if ($payment === null) {
-            throw new PaymentException('Payment not found', ErrorCode::PaymentNotFound);
-        }
-
-        if (!$payment['status']->canTransitionTo($nextStatus)) {
-            throw new PaymentException(
-                'Payment status is not transitionable to ' . $nextStatus->value,
-                ErrorCode::InvalidStatusTransition,
-            );
-        }
-
-        $this->db->beginTransaction();
         try {
+            $this->db->beginTransaction();
+
+            $payment = $this->findById($payload['payment_id'], forUpdate: true);
+            if ($payment === null) {
+                throw new PaymentException('Payment not found', ErrorCode::PaymentNotFound);
+            }
+
+            if ($payment['status'] === $nextStatus) {
+                $this->db->commit();
+                return $payment;
+            }
+
+            if (!$payment['status']->canTransitionTo($nextStatus)) {
+                throw new PaymentException(
+                    'Payment status is not transitionable to ' . $nextStatus->value,
+                    ErrorCode::InvalidStatusTransition,
+                );
+            }
+
             $stmt = $this->db->pdo()->prepare('UPDATE payments SET status = :status WHERE id = :id');
             $stmt->execute(['status' => $nextStatus->value, 'id' => $payment['id']]);
             $this->db->commit();
-        } catch (\PDOException $e) {
+        } catch (\Throwable $e) {
             if ($this->db->pdo()->inTransaction()) {
                 $this->db->rollBack();
             }
@@ -120,11 +126,6 @@ class PaymentService
         }
 
         return $payment;
-
-        // TODO: Реализовать
-        // 3. SELECT ... FOR UPDATE
-        // 4. Проверка canTransitionTo()
-        // 5. UPDATE статуса
     }
 
     private function findByIdempotencyKey(string $key): ?array
@@ -136,9 +137,14 @@ class PaymentService
         return $row === false ? null : $this->mapPayment($row);
     }
 
-    private function findById(int $id): ?array
+    private function findById(int $id, bool $forUpdate = false): ?array
     {
-        $stmt = $this->db->pdo()->prepare('SELECT * FROM payments WHERE id = :id LIMIT 1');
+        $sql = 'SELECT * FROM payments WHERE id = :id LIMIT 1';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $stmt = $this->db->pdo()->prepare($sql);
         $stmt->execute(['id' => $id]);
         $row = $stmt->fetch();
 
